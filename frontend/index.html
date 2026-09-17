@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Generic PDF-to-AI pipeline: Upload any book or paper PDF to automatically extract structure, build vector knowledge bases on 4 CPU cores, and chat with citation-grounded AI.">
+  <title>BookMind-AI | Generic Book-to-AI Pipeline & Grounded RAG Chatbot</title>
+  
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark-theme">
+  <!-- Top Navigation Header -->
+  <header class="app-header" id="app-header">
+    <div class="header-left">
+      <div class="logo-container">
+        <div class="logo-icon-glow">
+          <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <circle cx="12" cy="9" r="2" fill="currentColor"></circle>
+            <path d="M10 13h4"></path>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1 class="logo-title">BookMind<span class="gradient-text">.AI</span></h1>
+          <span class="logo-subtitle">Generic PDF-to-AI Pipeline</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="hardware-badge" id="hardware-badge" title="4-Core CPU Parallel Pipeline (No GPU Required)">
+        <span class="pulse-indicator"></span>
+        <svg class="badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+          <rect x="9" y="9" width="6" height="6"></rect>
+          <line x1="9" y1="1" x2="9" y2="4"></line>
+          <line x1="15" y1="1" x2="15" y2="4"></line>
+          <line x1="9" y1="20" x2="9" y2="23"></line>
+          <line x1="15" y1="20" x2="15" y2="23"></line>
+          <line x1="20" y1="9" x2="23" y2="9"></line>
+          <line x1="20" y1="14" x2="23" y2="14"></line>
+          <line x1="1" y1="9" x2="4" y2="9"></line>
+          <line x1="1" y1="14" x2="4" y2="14"></line>
+        </svg>
+        <span id="hardware-status-text">4 CPU Cores Active (FastEmbed + BM25)</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="active-provider-pill" id="active-provider-pill">
+        <span class="provider-dot"></span>
+        <span id="provider-label">Local Grounded CPU</span>
+      </div>
+      <button class="btn btn-icon-glass" id="open-settings-btn" title="Configure LLM & API Keys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Model Settings</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-main-layout">
+    <!-- Left Sidebar: Book Library & Pipeline Tracker -->
+    <aside class="sidebar-library" id="sidebar-library">
+      <!-- Upload Drop Zone -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <h2 class="section-title">Upload Any Book PDF</h2>
+          <span class="badge-pill">Generic RAG</span>
+        </div>
+        
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="pdf-file-input" accept=".pdf" class="file-input-hidden">
+          <div class="drop-zone-content">
+            <div class="upload-icon-circle">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <p class="drop-primary">Drop any PDF book or paper here</p>
+            <p class="drop-secondary">or <span class="browse-link">browse from your computer</span></p>
+            <div class="drop-tags">
+              <span class="tag">Text or Scanned</span>
+              <span class="tag">OCR Ready</span>
+              <span class="tag">4-Core CPU</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary-glass btn-block" id="preset-paper-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          Load Pre-uploaded 6G Networks Paper
+        </button>
+      </div>
+
+      <!-- Live Pipeline Processing Meter (hidden by default) -->
+      <div class="pipeline-progress-card hidden" id="pipeline-progress-card">
+        <div class="pipeline-card-header">
+          <span class="status-spinner"></span>
+          <span class="pipeline-title" id="pipeline-status-text">Processing Book...</span>
+          <span class="pipeline-pct" id="pipeline-pct">0%</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
+        </div>
+        <div class="pipeline-stages-list">
+          <div class="stage-item" id="stage-1">
+            <span class="stage-bullet">1</span>
+            <span class="stage-label">4-Core PDF Analysis & RapidOCR</span>
+          </div>
+          <div class="stage-item" id="stage-2">
+            <span class="stage-bullet">2</span>
+            <span class="stage-label">Structure & Section Hierarchy Parsing</span>
+          </div>
+          <div class="stage-item" id="stage-3">
+            <span class="stage-bullet">3</span>
+            <span class="stage-label">Semantic Chunking & Breadcrumbs</span>
+          </div>
+          <div class="stage-item" id="stage-4">
+            <span class="stage-bullet">4</span>
+            <span class="stage-label">FastEmbed ONNX Vector & BM25 Knowledge Base</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Processed Books List -->
+      <div class="sidebar-section books-list-section">
+        <div class="section-header">
+          <h2 class="section-title">Knowledge Bases</h2>
+          <span class="books-count-badge" id="books-count">0 Books</span>
+        </div>
+        
+        <div class="books-list" id="books-list">
+          <!-- Populated dynamically via JS -->
+          <div class="empty-state">
+            <p>No books indexed yet. Upload a PDF or click the preset button above.</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Main Area: Dual Tabs (Chatbot / Book Inspector) -->
+    <section class="main-content-panel" id="main-content-panel">
+      <!-- Tab Header Bar -->
+      <div class="panel-tab-bar">
+        <div class="tab-buttons">
+          <button class="tab-btn active" id="tab-btn-chat" data-tab="tab-chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            AI Book Assistant
+          </button>
+          <button class="tab-btn" id="tab-btn-inspector" data-tab="tab-inspector">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            Book Knowledge Inspector
+          </button>
+          <button class="tab-btn" id="tab-btn-custom-llm" data-tab="tab-custom-llm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+              <line x1="9" y1="9" x2="9" y2="9.01"></line>
+              <line x1="15" y1="9" x2="15" y2="9.01"></line>
+              <line x1="9" y1="15" x2="9" y2="15.01"></line>
+              <line x1="15" y1="15" x2="15" y2="15.01"></line>
+              <path d="M9 12h6"></path>
+              <path d="M12 9v6"></path>
+            </svg>
+            Custom LLM (From Scratch)
+          </button>
+        </div>
+
+        <div class="active-book-summary" id="active-book-summary">
+          <span class="summary-label">Current Book:</span>
+          <span class="summary-title" id="summary-book-title">None Selected</span>
+        </div>
+      </div>
+
+      <!-- Tab 1: AI Chatbot -->
+      <div class="tab-pane active" id="tab-chat">
+        <!-- Book Banner -->
+        <div class="chat-book-banner" id="chat-book-banner">
+          <div class="banner-book-info">
+            <div class="banner-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <h3 class="banner-title" id="banner-title">Select or upload a book to begin chatting</h3>
+              <p class="banner-meta" id="banner-meta">Every answer will be strictly grounded with chapter, section, and page citations.</p>
+            </div>
+          </div>
+          <div class="banner-actions">
+            <button class="btn btn-sm btn-ghost" id="clear-chat-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              Clear Chat
+            </button>
+          </div>
+        </div>
+
+        <!-- Suggested Prompt Chips -->
+        <div class="suggested-prompts-row" id="suggested-prompts-row">
+          <span class="prompts-label">Suggested Questions:</span>
+          <div class="prompts-chips" id="prompts-chips">
+            <button class="chip" data-prompt="What are the primary enabling technologies for 6G wireless communication?">
+              What are the primary enabling technologies for 6G?
+            </button>
+            <button class="chip" data-prompt="What are the key differences between 5G and 6G in terms of data rates, latency, and frequency bands?">
+              Compare 5G vs 6G data rates & latency
+            </button>
+            <button class="chip" data-prompt="What future challenges and open research issues are identified in this paper?">
+              Future challenges & open issues
+            </button>
+            <button class="chip" data-prompt="What role do Reconfigurable Intelligent Surfaces (RIS) and THz communication play?">
+              Role of RIS and THz communication
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat Conversation Messages Stream -->
+        <div class="chat-messages-container" id="chat-messages-container">
+          <!-- Initial Welcome Message -->
+          <div class="message-bubble message-assistant">
+            <div class="bubble-avatar">
+              <span>AI</span>
+            </div>
+            <div class="bubble-body">
+              <div class="bubble-content">
+                <p><strong>Welcome to BookMind-AI!</strong></p>
+                <p>I am your dedicated Book AI Assistant. Upload any book or paper PDF, and my 4-core parallel pipeline will automatically analyze, parse, chunk, and index the entire document into an isolated vector knowledge base.</p>
+                <p>Whenever you ask a question, I will retrieve the most relevant passages using <strong>FastEmbed ONNX Vector Search + BM25 Lexical Hybrid Reranking</strong>, and ground my answer with exact <strong>chapter, section, and page citations</strong>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <div class="chat-input-wrapper">
+          <form class="chat-input-form" id="chat-form">
+            <textarea
+              id="chat-textarea"
+              class="chat-textarea"
+              placeholder="Ask any question about the selected book (citations will be provided)..."
+              rows="1"
+            ></textarea>
+            <button type="submit" class="btn btn-primary-send" id="send-btn" title="Send Question">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </form>
+          <div class="chat-input-footer">
+            <span>Powered by 4-Core CPU FastEmbed & BM25 Hybrid Retrieval</span>
+            <span class="grounding-guarantee">✓ Strictly Grounded with Page Citations</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Book Knowledge Inspector -->
+      <div class="tab-pane" id="tab-inspector">
+        <div class="inspector-container">
+          <!-- Inspection Metrics Cards -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-title">Total Pages</div>
+              <div class="metric-value" id="metric-pages">-</div>
+              <div class="metric-sub" id="metric-doc-type">Document Type</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Semantic Chunks</div>
+              <div class="metric-value" id="metric-chunks">-</div>
+              <div class="metric-sub">Hierarchical Chunks</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Images & Drawings</div>
+              <div class="metric-value" id="metric-images">-</div>
+              <div class="metric-sub">Figures / Diagrams</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Primary Language</div>
+              <div class="metric-value" id="metric-lang">-</div>
+              <div class="metric-sub">Auto-detected</div>
+            </div>
+          </div>
+
+          <!-- Document Chapters / Outline & Chunk Explorer -->
+          <div class="inspector-panels-grid">
+            <div class="inspector-panel">
+              <h3 class="panel-title">Document Structure & Chapters</h3>
+              <div class="chapters-tree" id="chapters-tree">
+                <p class="empty-hint">Select a book to inspect its structure outline.</p>
+              </div>
+            </div>
+
+            <div class="inspector-panel">
+              <div class="panel-header-with-action">
+                <h3 class="panel-title">Semantic Chunks Browser</h3>
+                <span class="badge-pill" id="chunks-count-pill">0 Chunks</span>
+              </div>
+              <div class="chunks-browser-list" id="chunks-browser-list">
+                <p class="empty-hint">Select a book to browse extracted semantic chunks.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Custom LLM From Scratch (Training, Testing & Chat) -->
+      <div class="tab-pane" id="tab-custom-llm">
+        <div class="custom-llm-container">
+          <!-- Top Architecture & Status Banner -->
+          <div class="llm-overview-card">
+            <div class="llm-overview-left">
+              <div class="llm-chip-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <line x1="12" y1="1" x2="12" y2="4"></line>
+                  <line x1="12" y1="20" x2="12" y2="23"></line>
+                  <line x1="20" y1="12" x2="23" y2="12"></line>
+                  <line x1="1" y1="12" x2="4" y2="12"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="llm-title-row">
+                  <h2 class="llm-model-title">BookMindGPT <span class="gradient-text">From Scratch</span></h2>
+                  <span class="status-badge-chip untrained" id="llm-status-badge">Model Untrained</span>
+                </div>
+                <p class="llm-model-desc">
+                  A complete GPT-2 style causal language model built entirely from scratch in PyTorch (no HuggingFace, no external APIs).
+                  Parallelized across <strong>4 CPU Cores</strong> for high-throughput PDF tokenization and mini-batch construction.
+                </p>
+              </div>
+            </div>
+            <div class="llm-specs-grid">
+              <div class="spec-pill">
+                <span class="spec-label">Architecture</span>
+                <span class="spec-val">GPT-2 Causal Decoder</span>
+              </div>
+              <div class="spec-pill">
+                <span class="spec-label">Parameters</span>
+                <span class="spec-val" id="spec-params">~10.4 Million</span>
+              </div>
+              <div class="spec-pill">
+                <span class="spec-label">Layers / Heads / Dim</span>
+                <span class="spec-val">6L · 6H · 384D</span>
+              </div>
+              <div class="spec-pill">
+                <span class="spec-label">Hardware Pipeline</span>
+                <span class="spec-val spec-highlight">4 CPU Cores Parallel</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dual PDF Folders Section: Training & Testing PDFs -->
+          <div class="llm-folders-grid">
+            <!-- Folder 1: Training PDFs -->
+            <div class="folder-card training-folder">
+              <div class="folder-header">
+                <div class="folder-title-wrap">
+                  <div class="folder-icon-circle training-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="folder-title">Training PDFs</h3>
+                    <span class="folder-path">data/llm_training_pdfs/</span>
+                  </div>
+                </div>
+                <span class="folder-count-badge" id="training-count-badge">0 PDFs</span>
+              </div>
+              <p class="folder-desc">PDFs placed here are processed using 4 parallel cores to train the custom BPE tokenizer and Transformer weights.</p>
+
+              <div class="folder-upload-box" id="training-drop-zone">
+                <input type="file" id="training-file-input" accept=".pdf" class="file-input-hidden">
+                <div class="folder-upload-prompt">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <span>Upload Training PDF</span>
+                  <span class="upload-sub">or drop PDF here</span>
+                </div>
+              </div>
+
+              <!-- Training Files List -->
+              <div class="folder-files-list" id="training-files-list">
+                <p class="empty-hint">No training PDFs uploaded yet.</p>
+              </div>
+            </div>
+
+            <!-- Folder 2: Testing PDFs -->
+            <div class="folder-card testing-folder">
+              <div class="folder-header">
+                <div class="folder-title-wrap">
+                  <div class="folder-icon-circle testing-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                      <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="folder-title">Testing PDFs</h3>
+                    <span class="folder-path">data/llm_testing_pdfs/</span>
+                  </div>
+                </div>
+                <span class="folder-count-badge" id="testing-count-badge">0 PDFs</span>
+              </div>
+              <p class="folder-desc">PDFs placed here are kept strictly held-out to evaluate validation loss and perplexity on 4 CPU cores.</p>
+
+              <div class="folder-upload-box" id="testing-drop-zone">
+                <input type="file" id="testing-file-input" accept=".pdf" class="file-input-hidden">
+                <div class="folder-upload-prompt">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <span>Upload Testing PDF</span>
+                  <span class="upload-sub">or drop PDF here</span>
+                </div>
+              </div>
+
+              <!-- Testing Files List -->
+              <div class="folder-files-list" id="testing-files-list">
+                <p class="empty-hint">No testing PDFs uploaded yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Training & Evaluation Execution Dashboard -->
+          <div class="llm-actions-grid">
+            <!-- Training Control Card -->
+            <div class="llm-action-card">
+              <div class="card-header-flex">
+                <div class="header-icon-title">
+                  <span class="action-num">1</span>
+                  <div>
+                    <h3 class="action-card-title">Train Custom LLM</h3>
+                    <span class="action-card-sub">4-Core Parallel DataLoader & Extraction</span>
+                  </div>
+                </div>
+                <button class="btn btn-primary-gradient" id="start-train-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>Start 4-Core Training</span>
+                </button>
+              </div>
+
+              <!-- Live Training Progress Monitor -->
+              <div class="training-monitor" id="training-monitor">
+                <div class="training-progress-header">
+                  <span class="training-phase-label" id="training-phase-label">Ready to train</span>
+                  <span class="training-pct-label" id="training-pct-label">0%</span>
+                </div>
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill" id="training-progress-fill" style="width: 0%;"></div>
+                </div>
+
+                <div class="training-metrics-row">
+                  <div class="t-metric">
+                    <span class="t-metric-label">Epoch</span>
+                    <span class="t-metric-val" id="t-metric-epoch">0 / 5</span>
+                  </div>
+                  <div class="t-metric">
+                    <span class="t-metric-label">Training Loss</span>
+                    <span class="t-metric-val" id="t-metric-loss">-</span>
+                  </div>
+                  <div class="t-metric">
+                    <span class="t-metric-label">Perplexity</span>
+                    <span class="t-metric-val" id="t-metric-ppl">-</span>
+                  </div>
+                  <div class="t-metric">
+                    <span class="t-metric-label">Active Cores</span>
+                    <span class="t-metric-val highlight-val">4 Cores</span>
+                  </div>
+                </div>
+
+                <!-- Live Training Log Console -->
+                <div class="training-log-console" id="training-log-console">
+                  <div class="log-line info">[System] Ready. Upload training PDFs and click "Start 4-Core Training".</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Testing / Evaluation Control Card -->
+            <div class="llm-action-card">
+              <div class="card-header-flex">
+                <div class="header-icon-title">
+                  <span class="action-num">2</span>
+                  <div>
+                    <h3 class="action-card-title">Test & Evaluate Model</h3>
+                    <span class="action-card-sub">Measure Perplexity on Unseen Testing PDFs</span>
+                  </div>
+                </div>
+                <button class="btn btn-secondary-glass" id="start-test-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  <span>Run Test (4 Cores)</span>
+                </button>
+              </div>
+
+              <div class="testing-results-box" id="testing-results-box">
+                <div class="test-metrics-grid">
+                  <div class="test-metric-card">
+                    <span class="t-metric-label">Test Cross-Entropy Loss</span>
+                    <span class="test-metric-val" id="test-metric-loss">-</span>
+                  </div>
+                  <div class="test-metric-card">
+                    <span class="t-metric-label">Test Perplexity (PPL)</span>
+                    <span class="test-metric-val" id="test-metric-ppl">-</span>
+                  </div>
+                  <div class="test-metric-card">
+                    <span class="t-metric-label">Test Sequences Evaluated</span>
+                    <span class="test-metric-val" id="test-metric-seqs">-</span>
+                  </div>
+                  <div class="test-metric-card">
+                    <span class="t-metric-label">Total Test Tokens</span>
+                    <span class="test-metric-val" id="test-metric-tokens">-</span>
+                  </div>
+                </div>
+                <div class="test-eval-note" id="test-eval-note">
+                  Upload PDF(s) to the Testing PDFs folder above and click "Run Test" to evaluate generalization.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Talk with Custom LLM From Scratch -->
+          <div class="llm-chat-section">
+            <div class="section-header-row">
+              <div class="header-icon-title">
+                <div class="talk-icon-glow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="action-card-title">Talk with Custom Made LLM From Scratch</h3>
+                  <span class="action-card-sub">Autoregressive generation running locally on your CPU model weights</span>
+                </div>
+              </div>
+              <div class="llm-chat-controls">
+                <div class="param-slider-wrap">
+                  <label for="llm-temp-slider">Temp: <span id="temp-val-display">0.7</span></label>
+                  <input type="range" id="llm-temp-slider" min="0.1" max="1.5" step="0.05" value="0.7">
+                </div>
+                <div class="param-slider-wrap">
+                  <label for="llm-topk-slider">Top-K: <span id="topk-val-display">40</span></label>
+                  <input type="range" id="llm-topk-slider" min="10" max="100" step="5" value="40">
+                </div>
+                <button class="btn btn-sm btn-ghost" id="clear-custom-chat-btn">Clear</button>
+              </div>
+            </div>
+
+            <!-- Custom LLM Chat Stream -->
+            <div class="custom-chat-stream" id="custom-chat-stream">
+              <div class="message-bubble message-assistant">
+                <div class="bubble-avatar custom-llm-avatar">
+                  <span>GPT</span>
+                </div>
+                <div class="bubble-body">
+                  <div class="bubble-content">
+                    <p><strong>Hello! I am BookMindGPT</strong>, a custom mini GPT language model built from scratch in PyTorch.</p>
+                    <p>Once you train me on your training PDFs using 4 CPU cores, you can talk to me directly here, or select <strong>Custom LLM (From Scratch)</strong> in Model Settings to chat with citation-grounded RAG answers in the AI Assistant tab!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom LLM Input Box -->
+            <form class="custom-chat-form" id="custom-chat-form">
+              <input
+                type="text"
+                id="custom-chat-input"
+                class="custom-chat-input"
+                placeholder="Talk with the custom made LLM from scratch (e.g., 'What are the main concepts of 6G?')..."
+                autocomplete="off"
+              >
+              <button type="submit" class="btn btn-primary" id="custom-chat-send-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                <span>Talk</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Citation Source Passage Preview Modal -->
+  <div class="modal-overlay hidden" id="citation-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="verified-badge">✓ Verified Book Source</span>
+          <h3 class="modal-title" id="citation-modal-title">Source Citation Details</h3>
+        </div>
+        <button class="modal-close-btn" id="citation-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="citation-metadata-bar" id="citation-modal-meta">
+          <!-- Page, Chapter, Section, RRF Score -->
+        </div>
+        <div class="citation-passage-box">
+          <div class="passage-text" id="citation-modal-content"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary-glass" id="citation-modal-ok">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Settings Modal -->
+  <div class="modal-overlay hidden" id="settings-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">LLM Provider & Model Settings</h3>
+        <button class="modal-close-btn" id="settings-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="settings-desc">Choose your preferred LLM engine. The pipeline automatically falls back to our <strong>Local Grounded CPU Synthesizer</strong> if no API key is set.</p>
+        
+        <div class="form-group">
+          <label class="form-label" for="provider-select">Active Provider</label>
+          <select id="provider-select" class="form-select">
+            <option value="custom_llm">Custom LLM (From Scratch - 4 CPU Cores)</option>
+            <option value="gemini">Google Gemini (Recommended - Fast & Accurate)</option>
+            <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+            <option value="groq">Groq (Ultra-fast LLaMA 3.3)</option>
+            <option value="local">Local Grounded CPU Synthesizer (No API Key Required)</option>
+          </select>
+        </div>
+
+        <div class="form-group provider-key-group" id="gemini-key-group">
+          <label class="form-label" for="gemini-api-key">Google Gemini API Key</label>
+          <input type="password" id="gemini-api-key" class="form-input" placeholder="AIzaSy...">
+          <span class="form-hint">Get a free Gemini API key from Google AI Studio.</span>
+        </div>
+
+        <div class="form-group provider-key-group" id="openai-key-group">
+          <label class="form-label" for="openai-api-key">OpenAI API Key</label>
+          <input type="password" id="openai-api-key" class="form-input" placeholder="sk-...">
+        </div>
+
+        <div class="form-group provider-key-group" id="groq-key-group">
+          <label class="form-label" for="groq-api-key">Groq API Key</label>
+          <input type="password" id="groq-api-key" class="form-input" placeholder="gsk_...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary-glass" id="settings-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="settings-save-btn">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Bundle -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

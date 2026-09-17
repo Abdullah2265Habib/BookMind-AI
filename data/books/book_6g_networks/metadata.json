@@ -1,0 +1,302 @@
+{
+  "book_id": "book_6g_networks",
+  "title": "A comprehensive survey on 6G: Enabling technologies, key applications, and future challenges",
+  "author": "Sofiane Latreche",
+  "subject": "Franklin Open, 15 (2026) 100559. doi:10.1016/j.fraope.2026.100559",
+  "total_pages": 17,
+  "document_type": "text-based",
+  "scanned_pages_count": 0,
+  "ocr_applied_count": 0,
+  "total_images": 18,
+  "primary_language": "en",
+  "total_chunks": 87,
+  "table_of_contents": [
+    {
+      "level": 1,
+      "title": "A comprehensive survey on 6G: Enabling technologies, key applications, and future challenges",
+      "page": 1
+    },
+    {
+      "level": 2,
+      "title": "Introduction",
+      "page": 1
+    },
+    {
+      "level": 2,
+      "title": "Mobile network evolution",
+      "page": 2
+    },
+    {
+      "level": 3,
+      "title": "First steps from 1G to 3G",
+      "page": 2
+    },
+    {
+      "level": 3,
+      "title": "4G Evolution",
+      "page": 2
+    },
+    {
+      "level": 3,
+      "title": "5G Dynamics",
+      "page": 3
+    },
+    {
+      "level": 2,
+      "title": "Towards 6G",
+      "page": 4
+    },
+    {
+      "level": 3,
+      "title": "From 5G to 6G: Why Do We Need a New Generation?",
+      "page": 4
+    },
+    {
+      "level": 3,
+      "title": "Limitations of 5G in Addressing Future Needs",
+      "page": 4
+    },
+    {
+      "level": 3,
+      "title": "Vision and Objectives of 6G",
+      "page": 5
+    },
+    {
+      "level": 3,
+      "title": "6G Timeline",
+      "page": 5
+    },
+    {
+      "level": 2,
+      "title": "6G Enabling Technologies",
+      "page": 5
+    },
+    {
+      "level": 3,
+      "title": "Artificial intelligence and Machine learning",
+      "page": 6
+    },
+    {
+      "level": 3,
+      "title": "Generative Artificial Intelligence (GenAI)",
+      "page": 6
+    },
+    {
+      "level": 3,
+      "title": "Terahertz communication",
+      "page": 6
+    },
+    {
+      "level": 3,
+      "title": "Visual light communication",
+      "page": 6
+    },
+    {
+      "level": 3,
+      "title": "Multi-access edge computing (MEC)",
+      "page": 6
+    },
+    {
+      "level": 3,
+      "title": "Machine type communication",
+      "page": 7
+    },
+    {
+      "level": 3,
+      "title": "Low earth orbit satellite communication",
+      "page": 7
+    },
+    {
+      "level": 3,
+      "title": "Orbital angular momentum technique",
+      "page": 7
+    },
+    {
+      "level": 3,
+      "title": "Cognitive radio",
+      "page": 8
+    },
+    {
+      "level": 3,
+      "title": "Intelligent reflective surfaces",
+      "page": 8
+    },
+    {
+      "level": 3,
+      "title": "Wireless Energy Transmission",
+      "page": 8
+    },
+    {
+      "level": 3,
+      "title": "Edge intelligence",
+      "page": 8
+    },
+    {
+      "level": 3,
+      "title": "Digital Twin Networks",
+      "page": 9
+    },
+    {
+      "level": 3,
+      "title": "Free duplexing and spectrum sharing (FDSS)",
+      "page": 10
+    },
+    {
+      "level": 3,
+      "title": "Ultra Massive MIMO",
+      "page": 10
+    },
+    {
+      "level": 3,
+      "title": "Blockchain technology",
+      "page": 10
+    },
+    {
+      "level": 3,
+      "title": "Tactile internet",
+      "page": 10
+    },
+    {
+      "level": 3,
+      "title": "Quantum communication and quantum ML",
+      "page": 10
+    },
+    {
+      "level": 2,
+      "title": "The new architecture for the core network",
+      "page": 10
+    },
+    {
+      "level": 3,
+      "title": "From Terrestrial to Ubiquitous 3D Coverage",
+      "page": 10
+    },
+    {
+      "level": 4,
+      "title": "Space Network: LEO Satellite Systems",
+      "page": 11
+    },
+    {
+      "level": 4,
+      "title": "Aerial Network: Flexible Relay Services",
+      "page": 11
+    },
+    {
+      "level": 4,
+      "title": "Undersea Network",
+      "page": 12
+    },
+    {
+      "level": 2,
+      "title": "Use cases and emerging services",
+      "page": 12
+    },
+    {
+      "level": 3,
+      "title": "Connected Robotics and Autonomous Systems (CRAS)",
+      "page": 12
+    },
+    {
+      "level": 3,
+      "title": "Extended Reality",
+      "page": 12
+    },
+    {
+      "level": 3,
+      "title": "Internet of Everything (IOE) ",
+      "page": 12
+    },
+    {
+      "level": 3,
+      "title": "UAV Based Mobility",
+      "page": 12
+    },
+    {
+      "level": 3,
+      "title": "Holographic Telepresence",
+      "page": 12
+    },
+    {
+      "level": 3,
+      "title": "Wireless Brain-Computer Interactions (BCI)",
+      "page": 13
+    },
+    {
+      "level": 3,
+      "title": "Personalized Body Area Networks",
+      "page": 13
+    },
+    {
+      "level": 3,
+      "title": "Intelligent Healthcare",
+      "page": 13
+    },
+    {
+      "level": 3,
+      "title": "Industry 5.0",
+      "page": 14
+    },
+    {
+      "level": 3,
+      "title": "Use cases: Practical Example, Remote Holographic Surgery",
+      "page": 14
+    },
+    {
+      "level": 2,
+      "title": "Technical and theoretical challenges",
+      "page": 15
+    },
+    {
+      "level": 3,
+      "title": "Challenges in 6G Mobile Networks",
+      "page": 15
+    },
+    {
+      "level": 4,
+      "title": "High-Frequency Communication and Propagation Loss",
+      "page": 15
+    },
+    {
+      "level": 4,
+      "title": "Ultra Massive MIMO and Channel Complexity",
+      "page": 15
+    },
+    {
+      "level": 4,
+      "title": "Low-Latency and High-Reliability Requirements",
+      "page": 15
+    },
+    {
+      "level": 4,
+      "title": "Integration of Terrestrial and Non-Terrestrial Networks",
+      "page": 15
+    },
+    {
+      "level": 4,
+      "title": "Dynamic Channel Conditions",
+      "page": 15
+    },
+    {
+      "level": 2,
+      "title": "Conclusion",
+      "page": 15
+    },
+    {
+      "level": 2,
+      "title": "CRediT authorship contribution statement",
+      "page": 16
+    },
+    {
+      "level": 2,
+      "title": "Declaration of competing interest",
+      "page": 16
+    },
+    {
+      "level": 2,
+      "title": "References",
+      "page": 16
+    }
+  ],
+  "processing_time_seconds": 1.56,
+  "cpu_cores_used": 4
+}
