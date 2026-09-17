@@ -29,9 +29,57 @@ document.addEventListener("DOMContentLoaded", () => {
   // Tabs
   const tabBtnChat = document.getElementById("tab-btn-chat");
   const tabBtnInspector = document.getElementById("tab-btn-inspector");
+  const tabBtnCustomLlm = document.getElementById("tab-btn-custom-llm");
   const tabChat = document.getElementById("tab-chat");
   const tabInspector = document.getElementById("tab-inspector");
+  const tabCustomLlm = document.getElementById("tab-custom-llm");
   const summaryBookTitle = document.getElementById("summary-book-title");
+
+  // Custom LLM Elements
+  const llmStatusBadge = document.getElementById("llm-status-badge");
+  const specParams = document.getElementById("spec-params");
+
+  // Dual PDF folders
+  const trainingDropZone = document.getElementById("training-drop-zone");
+  const trainingFileInput = document.getElementById("training-file-input");
+  const trainingFilesList = document.getElementById("training-files-list");
+  const trainingCountBadge = document.getElementById("training-count-badge");
+
+  const testingDropZone = document.getElementById("testing-drop-zone");
+  const testingFileInput = document.getElementById("testing-file-input");
+  const testingFilesList = document.getElementById("testing-files-list");
+  const testingCountBadge = document.getElementById("testing-count-badge");
+
+  // Training Execution & Monitor
+  const startTrainBtn = document.getElementById("start-train-btn");
+  const trainingPhaseLabel = document.getElementById("training-phase-label");
+  const trainingPctLabel = document.getElementById("training-pct-label");
+  const trainingProgressFill = document.getElementById("training-progress-fill");
+  const tMetricEpoch = document.getElementById("t-metric-epoch");
+  const tMetricLoss = document.getElementById("t-metric-loss");
+  const tMetricPpl = document.getElementById("t-metric-ppl");
+  const trainingLogConsole = document.getElementById("training-log-console");
+
+  // Testing Execution & Results
+  const startTestBtn = document.getElementById("start-test-btn");
+  const testMetricLoss = document.getElementById("test-metric-loss");
+  const testMetricPpl = document.getElementById("test-metric-ppl");
+  const testMetricSeqs = document.getElementById("test-metric-seqs");
+  const testMetricTokens = document.getElementById("test-metric-tokens");
+  const testEvalNote = document.getElementById("test-eval-note");
+
+  // Custom LLM Talk Chat
+  const customChatStream = document.getElementById("custom-chat-stream");
+  const customChatForm = document.getElementById("custom-chat-form");
+  const customChatInput = document.getElementById("custom-chat-input");
+  const customChatSendBtn = document.getElementById("custom-chat-send-btn");
+  const clearCustomChatBtn = document.getElementById("clear-custom-chat-btn");
+  const llmTempSlider = document.getElementById("llm-temp-slider");
+  const llmTopkSlider = document.getElementById("llm-topk-slider");
+  const tempValDisplay = document.getElementById("temp-val-display");
+  const topkValDisplay = document.getElementById("topk-val-display");
+
+  let trainingPollingTimer = null;
 
   // Chat
   const chatMessagesContainer = document.getElementById("chat-messages-container");
@@ -76,6 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
     loadLocalSettings();
     await fetchStatus();
     await refreshBooks();
+    await refreshLlmStatus();
+    await refreshTrainingFiles();
+    await refreshTestingFiles();
     setupEventListeners();
   }
 
@@ -98,6 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateProviderLabel() {
     const labels = {
+      custom_llm: "Custom LLM (From Scratch)",
       gemini: "Google Gemini 2.0",
       openai: "OpenAI GPT-4o-mini",
       groq: "Groq LLaMA 3.3",
@@ -600,19 +652,27 @@ document.addEventListener("DOMContentLoaded", () => {
     presetPaperBtn.addEventListener("click", loadPresetPaper);
 
     // Tabs
-    tabBtnChat.addEventListener("click", () => {
-      tabBtnChat.classList.add("active");
-      tabBtnInspector.classList.remove("active");
-      tabChat.classList.add("active");
-      tabInspector.classList.remove("active");
-    });
+    function switchTab(tabKey) {
+      tabBtnChat?.classList.toggle("active", tabKey === "chat");
+      tabBtnInspector?.classList.toggle("active", tabKey === "inspector");
+      tabBtnCustomLlm?.classList.toggle("active", tabKey === "custom_llm");
 
-    tabBtnInspector.addEventListener("click", () => {
-      tabBtnInspector.classList.add("active");
-      tabBtnChat.classList.remove("active");
-      tabInspector.classList.add("active");
-      tabChat.classList.remove("active");
-    });
+      tabChat?.classList.toggle("active", tabKey === "chat");
+      tabInspector?.classList.toggle("active", tabKey === "inspector");
+      tabCustomLlm?.classList.toggle("active", tabKey === "custom_llm");
+
+      if (tabKey === "custom_llm") {
+        refreshLlmStatus();
+        refreshTrainingFiles();
+        refreshTestingFiles();
+      }
+    }
+
+    tabBtnChat.addEventListener("click", () => switchTab("chat"));
+    tabBtnInspector.addEventListener("click", () => switchTab("inspector"));
+    if (tabBtnCustomLlm) {
+      tabBtnCustomLlm.addEventListener("click", () => switchTab("custom_llm"));
+    }
 
     // Chat form
     chatForm.addEventListener("submit", (e) => {
@@ -695,6 +755,484 @@ document.addEventListener("DOMContentLoaded", () => {
 
       settingsModal.classList.add("hidden");
     });
+
+    setupCustomLlmListeners();
+  }
+
+  // =========================================================================
+  //  Custom LLM From Scratch Logic
+  // =========================================================================
+
+  async function refreshLlmStatus() {
+    try {
+      const res = await fetch("/api/llm/status");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (llmStatusBadge) {
+        if (data.status === "trained") {
+          llmStatusBadge.className = "status-badge-chip trained";
+          llmStatusBadge.textContent = "Model Trained & Ready";
+        } else if (data.status === "training") {
+          llmStatusBadge.className = "status-badge-chip training";
+          llmStatusBadge.textContent = "Training in Progress (4 Cores)";
+        } else {
+          llmStatusBadge.className = "status-badge-chip untrained";
+          llmStatusBadge.textContent = "Model Untrained";
+        }
+      }
+
+      if (specParams && data.total_parameters) {
+        specParams.textContent = `${(data.total_parameters / 1e6).toFixed(1)}M Params`;
+      }
+
+      if (data.final_train_loss && tMetricLoss) {
+        tMetricLoss.textContent = data.final_train_loss.toFixed(3);
+      }
+      if (data.final_train_perplexity && tMetricPpl) {
+        tMetricPpl.textContent = data.final_train_perplexity.toFixed(1);
+      }
+      if (data.epochs_completed && tMetricEpoch) {
+        tMetricEpoch.textContent = `${data.epochs_completed} / ${data.total_epochs || 5}`;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch LLM status", err);
+    }
+  }
+
+  async function refreshTrainingFiles() {
+    try {
+      const res = await fetch("/api/llm/training-files");
+      if (!res.ok) return;
+      const files = await res.json();
+      renderPdfFileList(trainingFilesList, files, "training");
+      if (trainingCountBadge) {
+        trainingCountBadge.textContent = `${files.length} PDF${files.length === 1 ? "" : "s"}`;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch training files", err);
+    }
+  }
+
+  async function refreshTestingFiles() {
+    try {
+      const res = await fetch("/api/llm/testing-files");
+      if (!res.ok) return;
+      const files = await res.json();
+      renderPdfFileList(testingFilesList, files, "testing");
+      if (testingCountBadge) {
+        testingCountBadge.textContent = `${files.length} PDF${files.length === 1 ? "" : "s"}`;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch testing files", err);
+    }
+  }
+
+  function renderPdfFileList(container, files, type) {
+    if (!container) return;
+    if (!files || files.length === 0) {
+      container.innerHTML = `<p class="empty-hint">No ${type} PDFs uploaded yet.</p>`;
+      return;
+    }
+
+    container.innerHTML = files.map(f => `
+      <div class="folder-file-item">
+        <div class="folder-file-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color:${type === 'training' ? 'var(--accent-purple)' : 'var(--accent-cyan)'}; flex-shrink:0;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <span class="folder-file-name" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</span>
+          <span class="folder-file-size">(${f.size_mb} MB)</span>
+        </div>
+        <button class="file-delete-btn" data-filename="${escapeHtml(f.filename)}" data-type="${type}" title="Delete PDF">✕</button>
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".file-delete-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const fname = btn.getAttribute("data-filename");
+        const ftype = btn.getAttribute("data-type");
+        await deleteLlmFile(fname, ftype);
+      });
+    });
+  }
+
+  async function uploadLlmPdf(file, type) {
+    if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
+      alert("Only PDF files are supported.");
+      return;
+    }
+
+    const endpoint = type === "training" ? "/api/llm/upload-training" : "/api/llm/upload-testing";
+    const formData = new FormData();
+    formData.append("file", file);
+
+    appendTrainingLog(`Uploading ${file.name} to ${type} folder...`, "info");
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Upload failed");
+      }
+
+      appendTrainingLog(`✓ Successfully uploaded ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, "success");
+
+      if (type === "training") {
+        await refreshTrainingFiles();
+      } else {
+        await refreshTestingFiles();
+      }
+    } catch (err) {
+      appendTrainingLog(`⚠️ Error uploading ${file.name}: ${err.message}`, "warn");
+      alert(`Upload failed: ${err.message}`);
+    }
+  }
+
+  async function deleteLlmFile(filename, type) {
+    if (!confirm(`Are you sure you want to remove ${filename} from ${type} PDFs?`)) return;
+
+    const endpoint = type === "training"
+      ? `/api/llm/training-files/${encodeURIComponent(filename)}`
+      : `/api/llm/testing-files/${encodeURIComponent(filename)}`;
+
+    try {
+      const res = await fetch(endpoint, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Delete failed");
+      }
+      appendTrainingLog(`Removed ${filename} from ${type} folder`, "info");
+      if (type === "training") {
+        await refreshTrainingFiles();
+      } else {
+        await refreshTestingFiles();
+      }
+    } catch (err) {
+      alert(`Delete error: ${err.message}`);
+    }
+  }
+
+  async function startTrainingCustomLlm() {
+    try {
+      startTrainBtn.disabled = true;
+      startTrainBtn.innerHTML = `
+        <span class="status-spinner"></span>
+        <span>Training on 4 Cores...</span>
+      `;
+
+      appendTrainingLog("[4-Core Engine] Initializing PyTorch custom LLM pipeline...", "info");
+
+      const res = await fetch("/api/llm/train", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to start training");
+      }
+
+      const data = await res.json();
+      appendTrainingLog(`[4-Core Engine] ${data.message} (${data.training_pdfs} PDF(s) found)`, "info");
+
+      if (trainingPollingTimer) clearInterval(trainingPollingTimer);
+      trainingPollingTimer = setInterval(pollTrainingStatus, 1200);
+
+    } catch (err) {
+      alert(err.message);
+      startTrainBtn.disabled = false;
+      startTrainBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <span>Start 4-Core Training</span>
+      `;
+    }
+  }
+
+  async function pollTrainingStatus() {
+    try {
+      const res = await fetch("/api/llm/train-status");
+      if (!res.ok) return;
+      const state = await res.json();
+
+      if (trainingPhaseLabel) trainingPhaseLabel.textContent = state.phase || state.status;
+
+      // Update metrics
+      if (tMetricEpoch) {
+        tMetricEpoch.textContent = `${state.epoch || 0} / ${state.total_epochs || 5}`;
+      }
+      if (tMetricLoss && state.current_loss) {
+        tMetricLoss.textContent = state.current_loss.toFixed(3);
+      }
+      if (tMetricPpl && state.current_perplexity) {
+        tMetricPpl.textContent = state.current_perplexity.toFixed(1);
+      }
+
+      // Progress calculation
+      let pct = 0;
+      if (state.total_epochs && state.total_epochs > 0) {
+        const epochPct = ((state.epoch || 0) / state.total_epochs) * 100;
+        const batchPct = state.total_batches ? ((state.batch || 0) / state.total_batches) * (100 / state.total_epochs) : 0;
+        pct = Math.min(Math.round(epochPct + batchPct), 99);
+      }
+
+      if (state.status === "completed") pct = 100;
+      if (trainingPctLabel) trainingPctLabel.textContent = `${pct}%`;
+      if (trainingProgressFill) trainingProgressFill.style.width = `${pct}%`;
+
+      // Log updates
+      if (state.log_message && state.log_message !== window._lastLlmLog) {
+        window._lastLlmLog = state.log_message;
+        appendTrainingLog(state.log_message, state.status === "completed" ? "success" : "info");
+      }
+
+      if (state.status === "completed") {
+        clearInterval(trainingPollingTimer);
+        trainingPollingTimer = null;
+        startTrainBtn.disabled = false;
+        startTrainBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Retrain Custom LLM (4 Cores)</span>
+        `;
+        appendTrainingLog("🎉 Training finished successfully! Model weights and BPE vocab saved.", "success");
+        await refreshLlmStatus();
+      } else if (state.status === "failed") {
+        clearInterval(trainingPollingTimer);
+        trainingPollingTimer = null;
+        startTrainBtn.disabled = false;
+        startTrainBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Retry Training (4 Cores)</span>
+        `;
+        appendTrainingLog(`⚠️ Training error: ${state.error || "Unknown failure"}`, "warn");
+      }
+    } catch (e) {
+      console.warn("Training poll error", e);
+    }
+  }
+
+  function appendTrainingLog(msg, type = "info") {
+    if (!trainingLogConsole) return;
+    const line = document.createElement("div");
+    line.className = `log-line ${type}`;
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    line.textContent = `[${timeStr}] ${msg}`;
+    trainingLogConsole.appendChild(line);
+    trainingLogConsole.scrollTop = trainingLogConsole.scrollHeight;
+  }
+
+  async function runTestingCustomLlm() {
+    try {
+      startTestBtn.disabled = true;
+      startTestBtn.innerHTML = `
+        <span class="status-spinner"></span>
+        <span>Evaluating on 4 Cores...</span>
+      `;
+      if (testEvalNote) testEvalNote.textContent = "Extracting testing PDFs and evaluating cross-entropy loss across 4 cores...";
+
+      const res = await fetch("/api/llm/test", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Test evaluation failed");
+      }
+
+      const data = await res.json();
+      if (testMetricLoss) testMetricLoss.textContent = data.test_loss !== undefined ? data.test_loss.toFixed(3) : "-";
+      if (testMetricPpl) testMetricPpl.textContent = data.test_perplexity !== undefined ? data.test_perplexity.toFixed(1) : "-";
+      if (testMetricSeqs) testMetricSeqs.textContent = data.test_sequences !== undefined ? data.test_sequences.toLocaleString() : "-";
+      if (testMetricTokens) testMetricTokens.textContent = data.test_tokens !== undefined ? data.test_tokens.toLocaleString() : "-";
+      if (testEvalNote) testEvalNote.textContent = `✓ Evaluation complete on ${data.test_tokens || 0} tokens from testing PDFs.`;
+
+    } catch (err) {
+      alert(`Testing Error: ${err.message}`);
+      if (testEvalNote) testEvalNote.textContent = `⚠️ Error: ${err.message}`;
+    } finally {
+      startTestBtn.disabled = false;
+      startTestBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span>Run Test (4 Cores)</span>
+      `;
+    }
+  }
+
+  async function submitCustomChatQuery() {
+    const text = customChatInput.value.trim();
+    if (!text) return;
+
+    customChatInput.value = "";
+
+    // Append user message
+    appendCustomChatMessage("user", text);
+
+    // Append loading assistant message
+    const msgId = `custom_msg_${Date.now()}`;
+    const loadingBubble = document.createElement("div");
+    loadingBubble.className = "message-bubble message-assistant";
+    loadingBubble.id = msgId;
+    loadingBubble.innerHTML = `
+      <div class="bubble-avatar custom-llm-avatar"><span>GPT</span></div>
+      <div class="bubble-body">
+        <div class="bubble-content">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="status-spinner"></span>
+            <span>BookMindGPT is generating autoregressively on CPU...</span>
+          </div>
+        </div>
+      </div>
+    `;
+    customChatStream.appendChild(loadingBubble);
+    customChatStream.scrollTop = customChatStream.scrollHeight;
+
+    try {
+      const res = await fetch("/api/llm/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: text,
+          book_id: currentBookId || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Generation failed");
+      }
+
+      const data = await res.json();
+      const answer = data.answer || "No response generated.";
+
+      const el = document.getElementById(msgId);
+      if (el) {
+        el.innerHTML = `
+          <div class="bubble-avatar custom-llm-avatar"><span>GPT</span></div>
+          <div class="bubble-body">
+            <div class="bubble-content">
+              <p>${escapeHtml(answer).replace(/\n/g, "<br>")}</p>
+            </div>
+          </div>
+        `;
+      }
+    } catch (err) {
+      const el = document.getElementById(msgId);
+      if (el) {
+        el.innerHTML = `
+          <div class="bubble-avatar custom-llm-avatar"><span>GPT</span></div>
+          <div class="bubble-body">
+            <div class="bubble-content">
+              <p style="color:#f43f5e;">⚠️ ${escapeHtml(err.message)}</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    customChatStream.scrollTop = customChatStream.scrollHeight;
+  }
+
+  function appendCustomChatMessage(role, text) {
+    const bubble = document.createElement("div");
+    bubble.className = `message-bubble message-${role}`;
+    bubble.innerHTML = `
+      <div class="bubble-avatar ${role === 'assistant' ? 'custom-llm-avatar' : ''}">
+        <span>${role === "user" ? "YOU" : "GPT"}</span>
+      </div>
+      <div class="bubble-body">
+        <div class="bubble-content">
+          <p>${escapeHtml(text)}</p>
+        </div>
+      </div>
+    `;
+    customChatStream.appendChild(bubble);
+    customChatStream.scrollTop = customChatStream.scrollHeight;
+  }
+
+  function setupCustomLlmListeners() {
+    // Training Upload Box
+    if (trainingDropZone && trainingFileInput) {
+      trainingDropZone.addEventListener("click", () => trainingFileInput.click());
+      trainingFileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) uploadLlmPdf(e.target.files[0], "training");
+      });
+      trainingDropZone.addEventListener("dragover", (e) => { e.preventDefault(); trainingDropZone.classList.add("dragover"); });
+      trainingDropZone.addEventListener("dragleave", () => trainingDropZone.classList.remove("dragover"));
+      trainingDropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        trainingDropZone.classList.remove("dragover");
+        if (e.dataTransfer.files.length > 0) uploadLlmPdf(e.dataTransfer.files[0], "training");
+      });
+    }
+
+    // Testing Upload Box
+    if (testingDropZone && testingFileInput) {
+      testingDropZone.addEventListener("click", () => testingFileInput.click());
+      testingFileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) uploadLlmPdf(e.target.files[0], "testing");
+      });
+      testingDropZone.addEventListener("dragover", (e) => { e.preventDefault(); testingDropZone.classList.add("dragover"); });
+      testingDropZone.addEventListener("dragleave", () => testingDropZone.classList.remove("dragover"));
+      testingDropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        testingDropZone.classList.remove("dragover");
+        if (e.dataTransfer.files.length > 0) uploadLlmPdf(e.dataTransfer.files[0], "testing");
+      });
+    }
+
+    // Start Training Button
+    if (startTrainBtn) {
+      startTrainBtn.addEventListener("click", startTrainingCustomLlm);
+    }
+
+    // Start Testing Button
+    if (startTestBtn) {
+      startTestBtn.addEventListener("click", runTestingCustomLlm);
+    }
+
+    // Custom LLM Chat Form
+    if (customChatForm) {
+      customChatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        submitCustomChatQuery();
+      });
+    }
+
+    // Clear Custom Chat
+    if (clearCustomChatBtn) {
+      clearCustomChatBtn.addEventListener("click", () => {
+        customChatStream.innerHTML = `
+          <div class="message-bubble message-assistant">
+            <div class="bubble-avatar custom-llm-avatar"><span>GPT</span></div>
+            <div class="bubble-body">
+              <div class="bubble-content">
+                <p>Chat cleared. Ask anything to BookMindGPT!</p>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Sliders
+    if (llmTempSlider && tempValDisplay) {
+      llmTempSlider.addEventListener("input", () => {
+        tempValDisplay.textContent = llmTempSlider.value;
+      });
+    }
+    if (llmTopkSlider && topkValDisplay) {
+      llmTopkSlider.addEventListener("input", () => {
+        topkValDisplay.textContent = llmTopkSlider.value;
+      });
+    }
   }
 
   function escapeHtml(str) {

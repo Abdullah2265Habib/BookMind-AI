@@ -16,6 +16,7 @@ and DataLoader batch construction.
 """
 
 import os
+import sys
 import re
 import json
 import math
@@ -100,11 +101,10 @@ class BookMindTokenizer:
 
     def train(self, text: str, progress_callback: Optional[Callable] = None):
         """
-        Train the BPE tokenizer on raw text.
+        Train the BPE tokenizer on raw text using word-level frequency counts.
         Starts with byte-level tokens (256) + 3 special tokens,
         then iteratively merges most frequent pairs.
         """
-        # Initialize base vocabulary: 3 special tokens + 256 byte values
         num_special = 3
         self.vocab = {
             0: b"<PAD>",
@@ -114,15 +114,26 @@ class BookMindTokenizer:
         for i in range(256):
             self.vocab[num_special + i] = bytes([i])
 
-        # Convert text to byte-level token sequence
-        text_bytes = text.encode("utf-8", errors="replace")
-        token_sequences = [[num_special + b for b in text_bytes]]
+        # Pre-tokenize text into words and punctuation
+        words = re.findall(r"\w+|[^\w\s]|\s+", text)
+        word_counts = collections.Counter(words)
+
+        # Represent each unique word as list of byte token IDs
+        word_splits: Dict[str, List[int]] = {
+            w: [num_special + b for b in w.encode("utf-8", errors="replace")]
+            for w in word_counts
+        }
 
         num_merges = self.vocab_size - num_special - 256
         next_id = num_special + 256
 
         for merge_step in range(num_merges):
-            pair_counts = self._get_pair_counts(token_sequences)
+            pair_counts = collections.Counter()
+            for w, tokens in word_splits.items():
+                freq = word_counts[w]
+                for i in range(len(tokens) - 1):
+                    pair_counts[(tokens[i], tokens[i + 1])] += freq
+
             if not pair_counts:
                 break
 
@@ -130,21 +141,33 @@ class BookMindTokenizer:
             if pair_counts[best_pair] < 2:
                 break  # No pair appears enough to be worth merging
 
-            # Perform merge
             self.merges[best_pair] = next_id
-            # Build new vocab entry by concatenating the bytes of both parts
             new_bytes = self.vocab.get(best_pair[0], b"") + self.vocab.get(best_pair[1], b"")
             self.vocab[next_id] = new_bytes
 
-            token_sequences = self._merge_pair(token_sequences, best_pair, next_id)
+            # Update word splits
+            for w in list(word_splits.keys()):
+                tokens = word_splits[w]
+                new_tokens = []
+                i = 0
+                while i < len(tokens):
+                    if i < len(tokens) - 1 and tokens[i] == best_pair[0] and tokens[i + 1] == best_pair[1]:
+                        new_tokens.append(next_id)
+                        i += 2
+                    else:
+                        new_tokens.append(tokens[i])
+                        i += 1
+                word_splits[w] = new_tokens
+
             next_id += 1
 
-            if progress_callback and merge_step % 100 == 0:
+            if progress_callback and merge_step % 200 == 0:
                 progress_callback(f"Tokenizer merge {merge_step}/{num_merges}", int(merge_step / num_merges * 100))
 
         # Build inverse vocab
         self.inverse_vocab = {v: k for k, v in self.vocab.items()}
         self._trained = True
+        self._word_cache = {}
 
         if progress_callback:
             progress_callback("Tokenizer training complete", 100)
@@ -154,19 +177,40 @@ class BookMindTokenizer:
         if not self._trained:
             raise RuntimeError("Tokenizer has not been trained yet.")
 
+        if not hasattr(self, "_word_cache"):
+            self._word_cache = {}
+
         num_special = 3
-        tokens = [num_special + b for b in text.encode("utf-8", errors="replace")]
+        words = re.findall(r"\w+|[^\w\s]|\s+", text)
+        result = []
 
-        # Apply merges in priority order (order they were learned)
-        for pair, new_id in self.merges.items():
-            i = 0
-            while i < len(tokens) - 1:
-                if tokens[i] == pair[0] and tokens[i + 1] == pair[1]:
-                    tokens = tokens[:i] + [new_id] + tokens[i + 2:]
-                else:
-                    i += 1
+        for word in words:
+            if word in self._word_cache:
+                result.extend(self._word_cache[word])
+                continue
 
-        return tokens
+            word_tokens = [num_special + b for b in word.encode("utf-8", errors="replace")]
+            while len(word_tokens) >= 2:
+                pairs = [(word_tokens[i], word_tokens[i + 1]) for i in range(len(word_tokens) - 1)]
+                best_pair = min(pairs, key=lambda p: self.merges.get(p, float("inf")))
+                if best_pair not in self.merges:
+                    break
+                new_id = self.merges[best_pair]
+                new_tokens = []
+                i = 0
+                while i < len(word_tokens):
+                    if i < len(word_tokens) - 1 and word_tokens[i] == best_pair[0] and word_tokens[i + 1] == best_pair[1]:
+                        new_tokens.append(new_id)
+                        i += 2
+                    else:
+                        new_tokens.append(word_tokens[i])
+                        i += 1
+                word_tokens = new_tokens
+
+            self._word_cache[word] = word_tokens
+            result.extend(word_tokens)
+
+        return result
 
     def decode(self, token_ids: List[int]) -> str:
         """Decode token IDs back to text."""
@@ -560,18 +604,20 @@ class BookCorpusDataset(Dataset):
     Creates sliding-window sequences of fixed context_length for causal LM training.
     """
 
-    def __init__(self, token_ids: List[int], context_length: int = LLM_CONTEXT_LENGTH):
+    def __init__(self, token_ids: List[int], context_length: int = LLM_CONTEXT_LENGTH, stride: Optional[int] = None):
         self.token_ids = torch.tensor(token_ids, dtype=torch.long)
         self.context_length = context_length
-        # Number of valid starting positions for sliding window
-        # Each sample is (input[i:i+ctx], target[i+1:i+ctx+1])
-        self.num_samples = max(0, len(token_ids) - context_length)
+        self.stride = stride or max(1, context_length // 4)
+        if len(token_ids) <= context_length + 1:
+            self.num_samples = 0
+        else:
+            self.num_samples = max(1, (len(token_ids) - context_length - 1) // self.stride + 1)
 
     def __len__(self) -> int:
         return self.num_samples
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        start = idx
+        start = idx * self.stride
         end = start + self.context_length
         input_ids = self.token_ids[start:end]        # (context_length,)
         target_ids = self.token_ids[start + 1:end + 1]  # (context_length,) shifted by 1
@@ -592,7 +638,7 @@ _TRAINING_STATE: Dict[str, Any] = {
     "train_loss": 0.0,
     "val_loss": 0.0,
     "val_perplexity": 0.0,
-    "best_val_loss": float("inf"),
+    "best_val_loss": None,
     "elapsed_seconds": 0,
     "message": "",
     "loss_history": [],  # List of {epoch, train_loss, val_loss, perplexity}
@@ -600,8 +646,14 @@ _TRAINING_STATE: Dict[str, Any] = {
 
 
 def get_training_state() -> Dict[str, Any]:
-    """Returns a copy of the current training state for API polling."""
-    return dict(_TRAINING_STATE)
+    """Returns a copy of the current training state sanitized for JSON serialization."""
+    clean = {}
+    for k, v in _TRAINING_STATE.items():
+        if isinstance(v, float) and (math.isinf(v) or math.isnan(v)):
+            clean[k] = None
+        else:
+            clean[k] = v
+    return clean
 
 
 def train_custom_llm(
@@ -673,21 +725,22 @@ def train_custom_llm(
         if len(train_dataset) < 1:
             raise ValueError("Training corpus too small. Need more text to create training sequences.")
 
-        # DataLoader with 4-core parallel workers
+        # DataLoader (PyTorch threads parallelize computations across 4 CPU cores)
+        loader_workers = 0 if sys.platform == "win32" else LLM_PARALLEL_WORKERS
         train_loader = DataLoader(
             train_dataset,
             batch_size=LLM_BATCH_SIZE,
             shuffle=True,
-            num_workers=LLM_PARALLEL_WORKERS,
+            num_workers=loader_workers,
             pin_memory=False,
-            drop_last=True,
+            drop_last=False,
         )
 
         val_loader = DataLoader(
             val_dataset,
             batch_size=LLM_BATCH_SIZE,
             shuffle=False,
-            num_workers=LLM_PARALLEL_WORKERS,
+            num_workers=loader_workers,
             pin_memory=False,
             drop_last=False,
         ) if len(val_dataset) > 0 else None
@@ -928,9 +981,10 @@ def evaluate_on_test_pdfs() -> Dict[str, Any]:
     if len(test_dataset) < 1:
         raise ValueError("Test corpus too small to create sequences.")
 
+    loader_workers = 0 if sys.platform == "win32" else LLM_PARALLEL_WORKERS
     test_loader = DataLoader(
         test_dataset, batch_size=LLM_BATCH_SIZE, shuffle=False,
-        num_workers=LLM_PARALLEL_WORKERS, drop_last=False
+        num_workers=loader_workers, drop_last=False
     )
 
     total_loss = 0.0

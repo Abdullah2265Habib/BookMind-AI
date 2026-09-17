@@ -1,0 +1,29 @@
+{
+  "status": "trained",
+  "total_params": 12309504,
+  "vocab_size": 4096,
+  "context_length": 256,
+  "embed_dim": 384,
+  "num_heads": 6,
+  "num_layers": 6,
+  "epochs_trained": 1,
+  "final_train_loss": 6.1623,
+  "final_val_loss": 5.6153,
+  "final_val_perplexity": 274.59,
+  "best_val_loss": 5.6153,
+  "training_time_seconds": 162.0,
+  "training_corpus_tokens": 12752,
+  "training_corpus_chars": 36617,
+  "loss_history": [
+    {
+      "epoch": 1,
+      "train_loss": 6.1623,
+      "val_loss": 5.6153,
+      "perplexity": 274.59
+    }
+  ],
+  "test_result": {
+    "test_loss": 5.9753,
+    "test_perplexity": 393.6
+  }
+}
